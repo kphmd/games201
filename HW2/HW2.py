@@ -42,11 +42,11 @@ new_dv = ti.Vector.field(n_dim, dtype=ti.f32, shape=max_num_particles)
 
 resi_out = ti.field(ti.f32,shape=(2))
 
-gravity[None]          = [0, 0] # -9.8]
+gravity[None]          = [0, -2.8]
 num_particles[None]    = 0
 particle_mass[None]    = 1
 damping[None]          = 0
-spring_stiffness[None] = 100
+spring_stiffness[None] = 30000
 paused[None]           = False
 
 @ti.func
@@ -95,7 +95,7 @@ def solve_equation() :
         resi_out[0] = resi()
         resi_out[1] = i
         # print("----->----->",resi_out[0])
-        if resi_out[0] < 1e-12 :
+        if resi_out[0] < 1e-7 :
             break
 
 @ti.kernel
@@ -174,7 +174,7 @@ def collide_box() :
             position[i].y  = bottom_y
             # new_force[i].y = 0 # abs(new_force[i].y)
             if velocity[i].y < 0 :
-                velocity[i].y  = abs(velocity[i].y)
+                velocity[i].y  = 0 # abs(velocity[i].y)
             # velocity[i].y = 0
         if position[i].y > top_y:
             position[i].y  = top_y
@@ -263,6 +263,8 @@ def substep_jacobi_semi():
             if rest_length[i,j] != 0 :
                 new_force[i] += f_ij(i,j) 
 
+    collide_box()
+
     # init new velocity
     for i in range(n) :
         new_velocity[i] = velocity[i] + new_force[i] / particle_mass[None] * dt
@@ -294,14 +296,15 @@ def substep_jacobi_semi():
 
     # Compute new position
     for i in range(n) :
-        position[i] += (velocity[i] + new_velocity[i]) * ht
-        velocity[i] = new_velocity[i]
+        if position[i].y > bottom_y :
+            position[i] += (velocity[i] + new_velocity[i]) * ht
+            velocity[i] = new_velocity[i]
         # velocity[i] *= ti.exp(-dt * damping[None]) # damping
 
 @ti.kernel
 def step_jacobi():
     for no_loop in range(1) :
-        for step in range(10):
+        for step in range(1):
             substep_jacobi_semi()
             # substep_jacobi()
         
@@ -315,10 +318,18 @@ def new_particle(pos_x: ti.f32, pos_y: ti.f32): # Taichi doesn't support using M
 @ti.kernel
 def hit_particle(pos_x: ti.f32, pos_y: ti.f32): 
     n = num_particles[None]
+    dist_x = 1e9
+    for no_loop in range(1) :
+        for i in range(n) :
+            dist = position[i].x - pos_x
+            if abs(dist_x) > abs(dist) :
+                dist_x = dist
+    print('dist_x:',dist_x)
     for i in range(n) :
-        dist = (position[i] - ti.Vector([pos_x,pos_y])).norm()
-        if dist < 0.05 : # and position[i].y > bottom_y :
-            position[i] = ti.Vector([pos_x,pos_y])
+        # dist = (position[i] - ti.Vector([pos_x,pos_y])).norm()
+        dist = abs(position[i].y - pos_y)
+        if dist < 0.05 and position[i].y > bottom_y :
+            position[i] += ti.Vector([dist_x,0.0])
 
 @ti.kernel
 def conn_particle(pos_i: ti.i32, pos_j: ti.i32) :
@@ -330,11 +341,11 @@ gui = ti.GUI('Mass Spring System', res=(512, 512), background_color=0xdddddd)
 
 
 def init() :
-    n_xs = 6
-    n_ys = 6
+    n_xs = 2
+    n_ys = 8
     for i in range(n_xs) :
         for j in range(n_ys) :
-            new_particle(0.25 + i * 0.1, 0.2 + bottom_y + j * 0.1)
+            new_particle(0.25 + i * 0.1, 0.00 + bottom_y + j * 0.1)
             if i > 0 :
                 conn_particle(i*n_ys+j,(i-1)*n_ys+(j+0))
             if j > 0 :
