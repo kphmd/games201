@@ -241,7 +241,7 @@ def substep_jacobi_semi():
 @ti.kernel
 def step_jacobi():
     for no_loop in range(1) :
-        for step in range(100):
+        for step in range(20):
             substep_jacobi_semi()
             # substep_jacobi()
         
@@ -263,8 +263,8 @@ def hit_particle(pos_x: ti.f32, pos_y: ti.f32):
                 dist_x = dist
     print('dist_x:',dist_x)
     for i in range(n) :
-        # dist = (position[i] - ti.Vector([pos_x,pos_y])).norm()
-        dist = abs(position[i].y - pos_y)
+        dist = (position[i] - ti.Vector([pos_x,pos_y])).norm()
+        # dist = abs(position[i].y - pos_y)
         if dist < 0.05 and position[i].y > bottom_y :
             out_force[i] += ti.Vector([dist_x,0.0]) * 30
             # position[i] += ti.Vector([dist_x,0.0])
@@ -296,11 +296,11 @@ def init() :
     rest_length.fill(0)
     num_adj.fill(0)
     adj_ptr.fill(-1)
-    n_xs = 40
+    n_xs = 2
     n_ys = 40
     for i in range(n_xs) :
         for j in range(n_ys) :
-            new_particle(0.15 + i * 0.02, 0.00 + bottom_y + j * 0.02)
+            new_particle(0.52 + i * 0.02, 0.10 + bottom_y + j * 0.02)
             if i > 0 :
                 conn_particle(i*n_ys+j,(i-1)*n_ys+(j+0))
             if j > 0 :
@@ -357,7 +357,7 @@ while True:
             if j >= 0 :
                 dist = math.sqrt((X[i][0]-X[j][0])**2 + (X[i][1]-X[j][1])**2)
                 ratio = (dist - Y[i][ptr_j])/Y[i][ptr_j]
-                ratio *= 100
+                ratio *= 300
                 ratio = max(-1.0, ratio)
                 ratio = min( 1.0, ratio)
                 if ratio < 0 :
@@ -366,9 +366,9 @@ while True:
                 else :
                     color = int( ratio * 255)
                 gui.line(begin=X[i], end=X[j], radius=1.5, color=color + 0x000000 )
-    gui.text(content=f'C: clear all; Space: pause', pos=(0, 0.95), color=0x0)
-    gui.text(content=f'S: Spring stiffness {spring_stiffness[None]:.1f}', pos=(0, 0.9), color=0x0)
-    gui.text(content=f'D: damping {damping[None]:.2f}', pos=(0, 0.85), color=0x0)
+    gui.text(content=f'C: clear all; Space: pause', pos=(0, 0.99), color=0x0)
+    gui.text(content=f'S: Spring stiffness {spring_stiffness[None]:.1f}', pos=(0.5, 0.99), color=0x0)
+    # gui.text(content=f'D: damping {damping[None]:.2f}', pos=(0, 0.85), color=0x0)
     gui.show()
 
 
