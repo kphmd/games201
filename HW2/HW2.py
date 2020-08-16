@@ -241,7 +241,7 @@ def substep_jacobi_semi():
 @ti.kernel
 def step_jacobi():
     for no_loop in range(1) :
-        for step in range(20):
+        for step in range(80):
             substep_jacobi_semi()
             # substep_jacobi()
         
@@ -300,7 +300,7 @@ def init() :
     n_ys = 40
     for i in range(n_xs) :
         for j in range(n_ys) :
-            new_particle(0.52 + i * 0.02, 0.10 + bottom_y + j * 0.02)
+            new_particle(0.52 + i * 0.02, 0.00 + bottom_y + j * 0.02)
             if i > 0 :
                 conn_particle(i*n_ys+j,(i-1)*n_ys+(j+0))
             if j > 0 :
@@ -357,7 +357,7 @@ while True:
             if j >= 0 :
                 dist = math.sqrt((X[i][0]-X[j][0])**2 + (X[i][1]-X[j][1])**2)
                 ratio = (dist - Y[i][ptr_j])/Y[i][ptr_j]
-                ratio *= 300
+                ratio *= 100
                 ratio = max(-1.0, ratio)
                 ratio = min( 1.0, ratio)
                 if ratio < 0 :
