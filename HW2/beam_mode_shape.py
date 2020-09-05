@@ -285,72 +285,92 @@ init()
 gui = ti.GUI('Mass Spring System', res=(512, 512), background_color=0xaaaaaa)
 gui.fps_limit = 24
 
-def run() :
-    # while True:
-    for i_frame in range(24*30) :
-        for e in gui.get_events(ti.GUI.PRESS):
-            if e.key in [ti.GUI.ESCAPE, ti.GUI.EXIT]:
-                return
-                exit()
-            elif e.key == gui.SPACE:
-                paused[None] = not paused[None]
-            elif e.key == 'c':
-                init()
-            elif e.key == 'n':
-                init(1)
-            elif e.key == 's':
-                if gui.is_pressed('Shift'):
-                    spring_stiffness[None] /= 1.1
-                else:
-                    spring_stiffness[None] *= 1.1
-            elif e.key == 'd':
-                if gui.is_pressed('Shift'):
-                    damping[None] /= 1.1
-                else:
-                    damping[None] *= 1.1
-            elif e.key == 'f':
-                if gui.is_pressed('Shift'):
-                    vib_dis[0] /= 1.1
-                else:
-                    vib_dis[0] *= 1.1
+def check_event() :
+    for e in gui.get_events(ti.GUI.PRESS):
+        if e.key in [ti.GUI.ESCAPE, ti.GUI.EXIT]:
+            return False
+        elif e.key == gui.SPACE:
+            paused[None] = not paused[None]
+        elif e.key == 'c':
+            init()
+        elif e.key == 'n':
+            init(1)
+        elif e.key == 's':
+            if gui.is_pressed('Shift'):
+                spring_stiffness[None] /= 1.1
+            else:
+                spring_stiffness[None] *= 1.1
+        elif e.key == 'd':
+            if gui.is_pressed('Shift'):
+                damping[None] /= 1.1
+            else:
+                damping[None] *= 1.1
+        elif e.key == 'f':
+            if gui.is_pressed('Shift'):
+                vib_dis[0] /= 1.1
+            else:
+                vib_dis[0] *= 1.1
+    return True
 
+def draw_gui() :
+    X = position.to_numpy()
+    Y = rest_length.to_numpy()
+    Z = adj_ptr.to_numpy()
+    # gui.circles(X[:num_particles[None]], color=0xffaa77, radius=1)
+    
+    gui.line(begin=(left_x, 0.0), end=(left_x, 1.0), color=0x0, radius=1)
+    
+    for i in range(num_particles[None]):
+        for ptr_j,j in enumerate(Z[i]) :
+            if j >= 0 and i > j :
+                dist = ((X[i][0]-X[j][0])**2 + (X[i][1]-X[j][1])**2)**0.5
+                ratio = (dist - Y[i][ptr_j]) / Y[i][ptr_j]
+                ratio *= ratio_mul
+                ratio = max(-1.0, ratio)
+                ratio = min( 1.0, ratio)
+                if ratio < 0 :
+                    color = ti.rgb_to_hex((1.0,1.0+ratio,1.0+ratio))
+                else :
+                    color = ti.rgb_to_hex((1.0-ratio,1.0-ratio,1.0))
+                
+                gui.line(begin=X[i], end=X[j], radius=1.5, color=color)
+
+    inv_freq = vib_dis[0] * (1.0 / 24.0 / steps)
+    freq = 1.0 / inv_freq
+    gui.text(content=f'C: clear all', pos=(left_x + 0.01, 0.99), color=0x0)
+    gui.text(content=f'Space: pause', pos=(left_x + 0.01, 0.96), color=0x0)
+    gui.text(content=f'S: Spring stiffness {spring_stiffness[None]:.1f}', pos=(left_x + 0.01, 0.93), color=0x0)
+    gui.text(content=f'F: Freq {freq:.4f}Hz T={inv_freq:.4f}s', pos=(left_x + 0.01, 0.90), color=0x0)
+
+
+
+def run() :
+    while True:
+        if check_event() == False :
+            break
                     
         if not paused[None]:
             step_jacobi()
             # print(f'residual={residual():0.10f}')
         
-        X = position.to_numpy()
-        Y = rest_length.to_numpy()
-        Z = adj_ptr.to_numpy()
-        # gui.circles(X[:num_particles[None]], color=0xffaa77, radius=1)
-        
-        gui.line(begin=(left_x, 0.0), end=(left_x, 1.0), color=0x0, radius=1)
-        
-        for i in range(num_particles[None]):
-            for ptr_j,j in enumerate(Z[i]) :
-                if j >= 0 and i > j :
-                    dist = ((X[i][0]-X[j][0])**2 + (X[i][1]-X[j][1])**2)**0.5
-                    ratio = (dist - Y[i][ptr_j]) / Y[i][ptr_j]
-                    ratio *= ratio_mul
-                    ratio = max(-1.0, ratio)
-                    ratio = min( 1.0, ratio)
-                    if ratio < 0 :
-                        color = ti.rgb_to_hex((1.0,1.0+ratio,1.0+ratio))
-                    else :
-                        color = ti.rgb_to_hex((1.0-ratio,1.0-ratio,1.0))
-                    
-                    gui.line(begin=X[i], end=X[j], radius=1.5, color=color)
-        inv_freq = vib_dis[0] * (1.0 / 24.0 / steps)
-        freq = 1.0 / inv_freq
-        gui.text(content=f'C: clear all', pos=(left_x + 0.01, 0.99), color=0x0)
-        gui.text(content=f'Space: pause', pos=(left_x + 0.01, 0.96), color=0x0)
-        gui.text(content=f'S: Spring stiffness {spring_stiffness[None]:.1f}', pos=(left_x + 0.01, 0.93), color=0x0)
-        gui.text(content=f'F: Freq {freq:.4f}Hz T={inv_freq:.4f}s', pos=(left_x + 0.01, 0.90), color=0x0)
-        
-        # gui.text(content=f'D: damping {damping[None]:.2f}', pos=(0, 0.85), color=0x0)
-        # gui.show()
+        draw_gui()
+        gui.show()
 
+
+def export_png() : # export result as png file
+    for i_frame in range(24*1) :
+        if check_event() == False :
+            break
+                    
+        if not paused[None]:
+            step_jacobi()
+        
+        draw_gui()
+        
         filename = f'frame_{i_frame:05d}.png'   # create filename with suffix png
-        print(f'Frame {i} is recorded in {filename}')
+        print(f'Frame {i_frame} is recorded in {filename}')
         gui.show(filename)  # export and show in GUI
+    exit()
+
+# export_png() # export result as png file
 run()
